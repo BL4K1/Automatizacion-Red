@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Seguridad del Router - Automatización de Red</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #e0f7fa, #f0f4f8);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 2rem;
+        }
+        .card {
+            border-radius: 1rem;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        .card-header {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            border-radius: 1rem 1rem 0 0 !important;
+        }
+        .btn-group-sm > .btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+        .device-status {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+        .device-online { background-color: #28a745; }
+        .device-offline { background-color: #dc3545; }
+        .device-unknown { background-color: #6c757d; }
+        .command-output {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .nav-tabs .nav-link {
+            color: #007bff;
+            border: none;
+            border-bottom: 2px solid transparent;
+        }
+        .nav-tabs .nav-link.active {
+            color: #0056b3;
+            border-bottom-color: #007bff;
+            background: none;
+        }
+        .table-responsive {
+            border-radius: 0.5rem;
+        }
+        .badge {
+            font-size: 0.8rem;
+        }
+        .alert {
+            border-radius: 0.5rem;
+        }
+    </style>
+</head>
+<body class="text-dark">
+    <div class="container">
+        <!-- Header -->
+        <div class="mb-4 d-flex align-items-center gap-3">
+            <i class="bi bi-shield-lock display-5 text-primary"></i>
+            <div>
+                <h1 class="text-primary mb-0">Seguridad del Router</h1>
+                <p class="text-muted mb-0">Gestión de usuarios y monitoreo de dispositivos</p>
+            </div>
+        </div>
+
+        <!-- Formulario de Conexión -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-router me-2"></i>Conexión al Router</h5>
+            </div>
+            <div class="card-body">
+                <form id="routerForm">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label for="ip" class="form-label">IP del Router</label>
+                            <input type="text" class="form-control" id="ip" name="ip" placeholder="192.168.1.1" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="usuario" class="form-label">Usuario</label>
+                            <input type="text" class="form-control" id="usuario" name="usuario" placeholder="admin" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="password" class="form-label">Contraseña</label>
+                            <input type="password" class="form-control" id="password" name="password" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="tipo_conexion" class="form-label">Tipo de Conexión</label>
+                            <select class="form-select" id="tipo_conexion" name="tipo_conexion">
+                                <option value="ssh">SSH</option>
+                                <option value="telnet">Telnet</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-success me-2" onclick="conectarRouter()">
+                            <i class="bi bi-plug me-1"></i>Conectar
+                        </button>
+                        <button type="button" class="btn btn-info me-2" onclick="verificarConexion()">
+                            <i class="bi bi-arrow-clockwise me-1"></i>Verificar Estado
+                        </button>
+                        <span id="connectionStatus" class="badge bg-secondary">Desconectado</span>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Tabs de Funcionalidades -->
+        <div class="card">
+            <div class="card-header">
+                <ul class="nav nav-tabs card-header-tabs" id="securityTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="usuarios-tab" data-bs-toggle="tab" data-bs-target="#usuarios" type="button" role="tab">
+                            <i class="bi bi-people me-1"></i>Usuarios del Router
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="dispositivos-tab" data-bs-toggle="tab" data-bs-target="#dispositivos" type="button" role="tab">
+                            <i class="bi bi-diagram-3 me-1"></i>Dispositivos Conectados
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs" type="button" role="tab">
+                            <i class="bi bi-journal-text me-1"></i>Logs de Seguridad
+                        </button>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content" id="securityTabsContent">
+                    <!-- Tab de Usuarios -->
+                    <div class="tab-pane fade show active" id="usuarios" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="text-primary mb-3">Usuarios Existentes</h6>
+                                <div class="d-flex gap-2 mb-3">
+                                    <button class="btn btn-outline-primary btn-sm" onclick="listarUsuarios()">
+                                        <i class="bi bi-arrow-clockwise me-1"></i>Actualizar Lista
+                                    </button>
+                                    <button class="btn btn-outline-info btn-sm" onclick="mostrarPrivilegios()">
+                                        <i class="bi bi-shield-check me-1"></i>Ver Privilegios
+                                    </button>
+                                </div>
+                                <div id="listaUsuarios" class="table-responsive">
+                                    <table class="table table-sm table-striped">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>Usuario</th>
+                                                <th>Privilegio</th>
+                                                <th>Estado</th>
+                                                <th>Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tablaUsuarios">
+                                            <tr>
+                                                <td colspan="4" class="text-center text-muted">No hay usuarios cargados</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="text-primary mb-3">Crear Nuevo Usuario</h6>
+                                <form id="crearUsuarioForm">
+                                    <div class="mb-3">
+                                        <label for="nuevoUsuario" class="form-label">Nombre de Usuario</label>
+                                        <input type="text" class="form-control" id="nuevoUsuario" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="nuevaPassword" class="form-label">Contraseña</label>
+                                        <input type="password" class="form-control" id="nuevaPassword" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="nivelPrivilegio" class="form-label">Nivel de Privilegio</label>
+                                        <select class="form-select" id="nivelPrivilegio">
+                                            <option value="1">1 - Solo lectura</option>
+                                            <option value="5">5 - Lectura/Escritura limitada</option>
+                                            <option value="15" selected>15 - Administrador completo</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="metodoAuth" class="form-label">Método de Autenticación</label>
+                                        <select class="form-select" id="metodoAuth">
+                                            <option value="local">Local</option>
+                                            <option value="enable">Enable Secret</option>
+                                        </select>
+                                    </div>
+                                    <button type="button" class="btn btn-success" onclick="crearUsuario()">
+                                        <i class="bi bi-person-plus me-1"></i>Crear Usuario
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab de Dispositivos -->
+                    <div class="tab-pane fade" id="dispositivos" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h6 class="text-primary mb-3">Dispositivos en la Red</h6>
+                                <div class="d-flex gap-2 mb-3">
+                                    <button class="btn btn-outline-primary btn-sm" onclick="escanearDispositivos()">
+                                        <i class="bi bi-search me-1"></i>Escanear Red
+                                    </button>
+                                    <button class="btn btn-outline-info btn-sm" onclick="mostrarTablaARP()">
+                                        <i class="bi bi-table me-1"></i>Tabla ARP
+                                    </button>
+                                    <button class="btn btn-outline-warning btn-sm" onclick="mostrarInterfacesVecinos()">
+                                        <i class="bi bi-diagram-2 me-1"></i>Vecinos CDP/LLDP
+                                    </button>
+                                </div>
+                                <div id="listaDispositivos" class="table-responsive">
+                                    <table class="table table-sm table-striped">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>Estado</th>
+                                                <th>IP</th>
+                                                <th>MAC</th>
+                                                <th>Hostname</th>
+                                                <th>Tipo</th>
+                                                <th>Interfaz</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tablaDispositivos">
+                                            <tr>
+                                                <td colspan="6" class="text-center text-muted">No hay dispositivos escaneados</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <h6 class="text-primary mb-3">Estadísticas de Red</h6>
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <div class="row text-center">
+                                            <div class="col-6">
+                                                <div class="text-success h4" id="dispositivosActivos">0</div>
+                                                <small class="text-muted">Activos</small>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="text-danger h4" id="dispositivosInactivos">0</div>
+                                                <small class="text-muted">Inactivos</small>
+                                            </div>
+                                        </div>
+                                        <hr>
+                                        <div class="row text-center">
+                                            <div class="col-12">
+                                                <div class="text-primary h5" id="totalDispositivos">0</div>
+                                                <small class="text-muted">Total Detectados</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab de Logs -->
+                    <div class="tab-pane fade" id="logs" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <h6 class="text-primary mb-3">Logs de Seguridad del Router</h6>
+                                <div class="d-flex gap-2 mb-3">
+                                    <button class="btn btn-outline-primary btn-sm" onclick="verLogsAuth()">
+                                        <i class="bi bi-shield-lock me-1"></i>Logs de Autenticación
+                                    </button>
+                                    <button class="btn btn-outline-warning btn-sm" onclick="verLogsConfig()">
+                                        <i class="bi bi-gear me-1"></i>Logs de Configuración
+                                    </button>
+                                    <button class="btn btn-outline-info btn-sm" onclick="verLogsConexion()">
+                                        <i class="bi bi-wifi me-1"></i>Logs de Conexión
+                                    </button>
+                                </div>
+                                <div id="logsContainer" class="command-output" style="height: 400px;">
+                                    <em class="text-muted">Selecciona un tipo de log para visualizar...</em>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Área de Resultados -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-terminal me-2"></i>Resultados de Comandos</h5>
+            </div>
+            <div class="card-body">
+                <div id="resultado" class="command-output" style="min-height: 200px;">
+                    <em class="text-muted">Los resultados de los comandos aparecerán aquí...</em>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let routerConnected = false;
+        let routerCredentials = {};
+
+        function conectarRouter() {
+            const ip = document.getElementById('ip').value;
+            const usuario = document.getElementById('usuario').value;
+            const password = document.getElementById('password').value;
+            const tipoConexion = document.getElementById('tipo_conexion').value;
+
+            if (!ip || !usuario || !password) {
+                alert('Por favor completa todos los campos de conexión');
+                return;
+            }
+
+            routerCredentials = { ip, usuario, password, tipoConexion };
+            
+            // Verificar conexión con comando simple
+            verificarConexion();
+        }
+
+        function verificarConexion() {
+            if (!routerCredentials.ip) {
+                alert('Primero debes conectarte al router');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('ip', routerCredentials.ip);
+            formData.append('usuario', routerCredentials.usuario);
+            formData.append('password', routerCredentials.password);
+            formData.append('tipo_conexion', routerCredentials.tipoConexion);
+            
+            fetch('/security/verificar-conexion', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    routerConnected = true;
+                    document.getElementById('connectionStatus').className = 'badge bg-success';
+                    document.getElementById('connectionStatus').textContent = 'Conectado';
+                    mostrarResultado('✅ Conexión exitosa al router ' + routerCredentials.ip);
+                    
+                    // Cargar datos iniciales
+                    listarUsuarios();
+                    escanearDispositivos();
+                } else {
+                    routerConnected = false;
+                    document.getElementById('connectionStatus').className = 'badge bg-danger';
+                    document.getElementById('connectionStatus').textContent = 'Error';
+                    mostrarResultado('❌ Error de conexión: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                routerConnected = false;
+                document.getElementById('connectionStatus').className = 'badge bg-danger';
+                document.getElementById('connectionStatus').textContent = 'Error';
+                mostrarResultado('❌ Error de conexión: ' + error.message);
+            });
+        }
+
+        function listarUsuarios() {
+            if (!routerConnected) {
+                alert('Primero debes conectarte al router');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('ip', routerCredentials.ip);
+            formData.append('usuario', routerCredentials.usuario);
+            formData.append('password', routerCredentials.password);
+            formData.append('tipo_conexion', routerCredentials.tipoConexion);
+
+            fetch('/security/listar-usuarios', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const usuarios = parseUsuarios(data.salida);
+                    actualizarTablaUsuarios(usuarios);
+                } else {
+                    mostrarResultado('❌ Error al listar usuarios: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                mostrarResultado('❌ Error al listar usuarios: ' + error.message);
+            });
+        }
+
+        function parseUsuarios(output) {
+            const lineas = output.split('\n');
+            const usuarios = [];
+            
+            lineas.forEach(linea => {
+                const match = linea.match(/username\s+(\S+)\s+(?:privilege\s+(\d+))?\s+(?:secret|password)\s+/);
+                if (match) {
+                    usuarios.push({
+                        nombre: match[1],
+                        privilegio: match[2] || '1',
+                        estado: 'Activo'
+                    });
+                }
+            });
+            
+            return usuarios;
+        }
+
+        function actualizarTablaUsuarios(usuarios) {
+            const tbody = document.getElementById('tablaUsuarios');
+            tbody.innerHTML = '';
+            
+            if (usuarios.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No se encontraron usuarios</td></tr>';
+                return;
+            }
+            
+            usuarios.forEach(usuario => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${usuario.nombre}</strong></td>
+                    <td><span class="badge ${usuario.privilegio === '15' ? 'bg-success' : 'bg-warning'}">${usuario.privilegio}</span></td>
+                    <td><span class="badge bg-primary">${usuario.estado}</span></td>
+                    <td>
+                        <button class="btn btn-outline-danger btn-sm" onclick="eliminarUsuario('${usuario.nombre}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function crearUsuario() {
+            if (!routerConnected) {
+                alert('Primero debes conectarte al router');
+                return;
+            }
+
+            const nombreUsuario = document.getElementById('nuevoUsuario').value;
+            const password = document.getElementById('nuevaPassword').value;
+            const privilegio = document.getElementById('nivelPrivilegio').value;
+            const metodoAuth = document.getElementById('metodoAuth') ? document.getElementById('metodoAuth').value : 'local';
+            
+            if (!nombreUsuario || !password) {
+                alert('Por favor completa todos los campos');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('ip', routerCredentials.ip);
+            formData.append('usuario', routerCredentials.usuario);
+            formData.append('password', routerCredentials.password);
+            formData.append('tipo_conexion', routerCredentials.tipoConexion);
+            formData.append('nuevo_usuario', nombreUsuario);
+            formData.append('nueva_password', password);
+            formData.append('privilegio', privilegio);
+            formData.append('metodo_auth', metodoAuth);
+
+            fetch('/security/crear-usuario', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    mostrarResultado(`✅ Usuario '${nombreUsuario}' creado exitosamente con privilegio ${privilegio}`);
+                    document.getElementById('crearUsuarioForm').reset();
+                    listarUsuarios();
+                } else {
+                    mostrarResultado('❌ Error al crear usuario: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                mostrarResultado('❌ Error al crear usuario: ' + error.message);
+            });
+        }
+
+        function eliminarUsuario(nombreUsuario) {
+            if (!routerConnected) {
+                alert('Primero debes conectarte al router');
+                return;
+            }
+
+            if (!confirm(`¿Estás seguro de eliminar el usuario '${nombreUsuario}'?`)) {
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('ip', routerCredentials.ip);
+            formData.append('usuario', routerCredentials.usuario);
+            formData.append('password', routerCredentials.password);
+            formData.append('tipo_conexion', routerCredentials.tipoConexion);
+            formData.append('usuario_eliminar', nombreUsuario);
+
+            fetch('/security/eliminar-usuario', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    mostrarResultado(`✅ Usuario '${nombreUsuario}' eliminado exitosamente`);
+                    listarUsuarios();
+                } else {
+                    mostrarResultado('❌ Error al eliminar usuario: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                mostrarResultado('❌ Error al eliminar usuario: ' + error.message);
+            });
+        }
+
+        function escanearDispositivos() {
+            if (!routerConnected) {
+                alert('Primero debes conectarte al router');
+                return;
+            }
+
+            mostrarResultado('🔍 Escaneando dispositivos conectados...');
+            
+            const formData = new FormData();
+            formData.append('ip', routerCredentials.ip);
+            formData.append('usuario', routerCredentials.usuario);
+            formData.append('password', routerCredentials.password);
+            formData.append('tipo_conexion', routerCredentials.tipoConexion);
+
+            fetch('/security/escanear-dispositivos', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const dispositivos = parseTablaARP(data.salida);
+                    actualizarTablaDispositivos(dispositivos);
+                    actualizarEstadisticas(dispositivos);
+                } else {
+                    mostrarResultado('❌ Error al escanear dispositivos: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                mostrarResultado('❌ Error al escanear dispositivos: ' + error.message);
+            });
+        }
+
+        function parseTablaARP(output) {
+            const lineas = output.split('\n');
+            const dispositivos = [];
+            
+            lineas.forEach(linea => {
+                const match = linea.match(/(\d+\.\d+\.\d+\.\d+)\s+\d+\s+([a-fA-F0-9:\.]+)\s+\w+\s+(\S+)/);
+                if (match) {
+                    dispositivos.push({
+                        ip: match[1],
+                        mac: match[2],
+                        interfaz: match[3],
+                        hostname: 'Detectando...',
+                        tipo: 'Desconocido',
+                        estado: 'online'
+                    });
+                }
+            });
+            
+            return dispositivos;
+        }
+
+        function actualizarTablaDispositivos(dispositivos) {
+            const tbody = document.getElementById('tablaDispositivos');
+            tbody.innerHTML = '';
+            
+            if (dispositivos.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No se encontraron dispositivos</td></tr>';
+                return;
+            }
+            
+            dispositivos.forEach(dispositivo => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><span class="device-status device-${dispositivo.estado}"></span></td>
+                    <td><code>${dispositivo.ip}</code></td>
+                    <td><small>${dispositivo.mac}</small></td>
+                    <td>${dispositivo.hostname}</td>
+                    <td><span class="badge bg-secondary">${dispositivo.tipo}</span></td>
+                    <td><code>${dispositivo.interfaz}</code></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function actualizarEstadisticas(dispositivos) {
+            const activos = dispositivos.filter(d => d.estado === 'online').length;
+            const inactivos = dispositivos.filter(d => d.estado === 'offline').length;
+            
+            document.getElementById('dispositivosActivos').textContent = activos;
+            document.getElementById('dispositivosInactivos').textContent = inactivos;
+            document.getElementById('totalDispositivos').textContent = dispositivos.length;
+        }
+
+        function mostrarTablaARP() {
+            if (!routerConnected) {
+                alert('Primero debes conectarte al router');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('ip', routerCredentials.ip);
+            formData.append('usuario', routerCredentials.usuario);
+            formData.append('password', routerCredentials.password);
+            formData.append('tipo_conexion', routerCredentials.tipoConexion);
+
+            fetch('/security/tabla-arp', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    mostrarResultado('📋 Tabla ARP del Router:\n\n' + data.salida);
+                } else {
+                    mostrarResultado('❌ Error al obtener tabla ARP: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                mostrarResultado('❌ Error al obtener tabla ARP: ' + error.message);
+            });
+        }
+
+        function mostrarInterfacesVecinos() {
+            if (!routerConnected) {
+                alert('Primero debes conectarte al router');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('ip', routerCredentials.ip);
+            formData.append('usuario', routerCredentials.usuario);
+            formData.append('password', routerCredentials.password);
+            formData.append('tipo_conexion', routerCredentials.tipoConexion);
+
+            fetch('/security/vecinos-cdp', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    mostrarResultado('🔗 Dispositivos vecinos:\n\n' + data.salida);
+                } else {
+                    mostrarResultado('❌ Error al obtener dispositivos vecinos: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                mostrarResultado('❌ Error al obtener dispositivos vecinos: ' + error.message);
+            });
+        }
+
+        function mostrarPrivilegios() {
+            if (!routerConnected) {
+                alert('Primero debes conectarte al router');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('ip', routerCredentials.ip);
+            formData.append('usuario', routerCredentials.usuario);
+            formData.append('password', routerCredentials.password);
+            formData.append('tipo_conexion', routerCredentials.tipoConexion);
+
+            fetch('/security/mostrar-privilegios', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    mostrarResultado('🔐 Información de privilegios:\n\n' + data.salida);
+                } else {
+                    mostrarResultado('❌ Error al obtener privilegios: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                mostrarResultado('❌ Error al obtener privilegios: ' + error.message);
+            });
+        }
+
+        function verLogsAuth() {
+            if (!routerConnected) {
+                alert('Primero debes conectarte al router');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('ip', routerCredentials.ip);
+            formData.append('usuario', routerCredentials.usuario);
+            formData.append('password', routerCredentials.password);
+            formData.append('tipo_conexion', routerCredentials.tipoConexion);
+
+            fetch('/security/logs-auth', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    document.getElementById('logsContainer').textContent = data.salida;
+                } else {
+                    document.getElementById('logsContainer').textContent = 'Error al obtener logs: ' + data.error;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('logsContainer').textContent = 'Error al obtener logs: ' + error.message;
+            });
+        }
+
+        function verLogsConfig() {
+            if (!routerConnected) {
+                alert('Primero debes conectarte al router');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('ip', routerCredentials.ip);
+            formData.append('usuario', routerCredentials.usuario);
+            formData.append('password', routerCredentials.password);
+            formData.append('tipo_conexion', routerCredentials.tipoConexion);
+
+            fetch('/security/logs-config', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    document.getElementById('logsContainer').textContent = data.salida;
+                } else {
+                    document.getElementById('logsContainer').textContent = 'Error al obtener logs: ' + data.error;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('logsContainer').textContent = 'Error al obtener logs: ' + error.message;
+            });
+        }
+
+        function verLogsConexion() {
+            if (!routerConnected) {
+                alert('Primero debes conectarte al router');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('ip', routerCredentials.ip);
+            formData.append('usuario', routerCredentials.usuario);
+            formData.append('password', routerCredentials.password);
+            formData.append('tipo_conexion', routerCredentials.tipoConexion);
+
+            fetch('/security/logs-conexion', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    document.getElementById('logsContainer').textContent = data.salida;
+                } else {
+                    document.getElementById('logsContainer').textContent = 'Error al obtener logs: ' + data.error;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('logsContainer').textContent = 'Error al obtener logs: ' + error.message;
+            });
+        }
+
+        function mostrarResultado(mensaje) {
+            const resultado = document.getElementById('resultado');
+            resultado.textContent = mensaje;
+            resultado.scrollTop = resultado.scrollHeight;
+        }
+
+        // Inicializar tabs de Bootstrap
+        document.addEventListener('DOMContentLoaded', function() {
+            const triggerTabList = document.querySelectorAll('#securityTabs button');
+            triggerTabList.forEach(triggerEl => {
+                const tabTrigger = new bootstrap.Tab(triggerEl);
+                triggerEl.addEventListener('click', event => {
+                    event.preventDefault();
+                    tabTrigger.show();
+                });
+            });
+        });
+    </script>
+</body>
+</html>

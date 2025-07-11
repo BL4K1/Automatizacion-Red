@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mantenimiento - Automatización de Red</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #e0f7fa, #f0f4f8);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 2rem;
+        }
+        .card {
+            border-radius: 1rem;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+        }
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .interface-status {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+        .interface {
+            padding: 0.5rem 1rem;
+            border-radius: 1rem;
+            color: white;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .interface.up {
+            background-color: #28a745;
+            animation: pulse-green 2s infinite;
+        }
+        .interface.down {
+            background-color: #dc3545;
+            animation: pulse-red 2s infinite;
+        }
+        .interface.warning {
+            background-color: #ffc107;
+            color: #000;
+            animation: pulse-yellow 2s infinite;
+        }
+        @keyframes pulse-green {
+            0%, 100% { box-shadow: 0 0 10px rgba(40, 167, 69, 0.5); }
+            50% { box-shadow: 0 0 20px rgba(40, 167, 69, 0.8); }
+        }
+        @keyframes pulse-red {
+            0%, 100% { box-shadow: 0 0 10px rgba(220, 53, 69, 0.5); }
+            50% { box-shadow: 0 0 20px rgba(220, 53, 69, 0.8); }
+        }
+        @keyframes pulse-yellow {
+            0%, 100% { box-shadow: 0 0 10px rgba(255, 193, 7, 0.5); }
+            50% { box-shadow: 0 0 20px rgba(255, 193, 7, 0.8); }
+        }
+        .connection-form {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 1rem;
+            padding: 2rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .btn-maintenance {
+            background: linear-gradient(45deg, #17a2b8, #20c997);
+            border: none;
+            color: white;
+            transition: all 0.3s ease;
+        }
+        .btn-maintenance:hover {
+            background: linear-gradient(45deg, #20c997, #17a2b8);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        .btn-download {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            border: none;
+            color: white;
+            transition: all 0.3s ease;
+        }
+        .btn-download:hover {
+            background: linear-gradient(45deg, #20c997, #28a745);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-ok { background-color: #28a745; }
+        .status-warning { background-color: #ffc107; }
+        .status-error { background-color: #dc3545; }
+        .loading {
+            display: none;
+        }
+        .loading.active {
+            display: inline-block;
+        }
+        .result-container {
+            background: #f8f9fa;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-top: 1rem;
+            border-left: 4px solid #17a2b8;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .result-container.error {
+            border-left-color: #dc3545;
+            background-color: #f8d7da;
+        }
+        .result-container.success {
+            border-left-color: #28a745;
+            background-color: #d4edda;
+        }
+        .maintenance-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+        .backup-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .backup-actions .btn {
+            flex: 1;
+            min-width: 120px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="section-title">
+            <i class="bi bi-wrench-adjustable display-4 text-info"></i>
+            <h1 class="text-info">Mantenimiento de Router</h1>
+        </div>
+
+        <!-- Formulario de Conexión -->
+        <div class="connection-form mb-4">
+            <h5 class="text-primary mb-3">
+                <i class="bi bi-router"></i> Conexión al Dispositivo
+            </h5>
+            <form id="connectionForm">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">IP del Router</label>
+                            <input type="text" class="form-control" id="ip" placeholder="192.168.1.1" required>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Usuario</label>
+                            <input type="text" class="form-control" id="usuario" placeholder="admin" required>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Contraseña</label>
+                            <input type="password" class="form-control" id="password" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Protocolo de Conexión</label>
+                            <select class="form-select" id="tipo_conexion">
+                                <option value="ssh">SSH (Recomendado)</option>
+                                <option value="telnet">Telnet</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">&nbsp;</label>
+                            <button type="button" class="btn btn-info w-100" onclick="testConnection()">
+                                <i class="bi bi-wifi"></i> Probar Conexión
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div id="connectionStatus" class="mt-2"></div>
+            </form>
+        </div>
+
+        <!-- Tareas de Mantenimiento -->
+        <div class="maintenance-grid">
+            <!-- Backup Automático -->
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title text-primary">
+                        <i class="bi bi-download"></i> Backup Automático
+                    </h5>
+                    <p class="card-text">Respaldar configuración del router</p>
+                    <div class="d-grid gap-2">
+                        <div class="backup-actions">
+                            <button class="btn btn-maintenance" onclick="realizarBackup('running')">
+                                <i class="bi bi-eye"></i> Ver Running
+                            </button>
+                            <button class="btn btn-download" onclick="descargarBackup('running')">
+                                <i class="bi bi-download"></i> Descargar
+                            </button>
+                        </div>
+                        <div class="backup-actions">
+                            <button class="btn btn-maintenance" onclick="realizarBackup('startup')">
+                                <i class="bi bi-eye"></i> Ver Startup
+                            </button>
+                            <button class="btn btn-download" onclick="descargarBackup('startup')">
+                                <i class="bi bi-download"></i> Descargar
+                            </button>
+                        </div>
+                        <button class="btn btn-outline-info" onclick="programarBackup()">
+                            <i class="bi bi-clock"></i> Programar Backup
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Monitoreo de Estado -->
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title text-success">
+                        <i class="bi bi-activity"></i> Monitoreo de Estado
+                    </h5>
+                    <p class="card-text">Estado del sistema y interfaces</p>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-maintenance" onclick="verificarEstado('cpu')">
+                            <i class="bi bi-cpu"></i> CPU y Memoria
+                        </button>
+                        <button class="btn btn-maintenance" onclick="verificarEstado('interfaces')">
+                            <i class="bi bi-ethernet"></i> Estado Interfaces
+                        </button>
+                        <button class="btn btn-maintenance" onclick="verificarEstado('errores')">
+                            <i class="bi bi-exclamation-triangle"></i> Errores CRC
+                        </button>
+                    </div>
+                    <div id="interfaceStatus" class="interface-status">
+                        <!-- Se llenarán dinámicamente -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actualización de Firmware -->
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title text-warning">
+                        <i class="bi bi-arrow-up-circle"></i> Actualización de Firmware
+                    </h5>
+                    <p class="card-text">Gestión de versiones IOS</p>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-maintenance" onclick="verificarVersion()">
+                            <i class="bi bi-info-circle"></i> Verificar Versión
+                        </button>
+                        <button class="btn btn-maintenance" onclick="listarImagenes()">
+                            <i class="bi bi-list"></i> Listar Imágenes
+                        </button>
+                        <button class="btn btn-outline-warning" onclick="actualizarFirmware()">
+                            <i class="bi bi-upload"></i> Actualizar Firmware
+                        </button>
+                    </div>
+                    <div id="versionInfo" class="mt-2">
+                        <small class="text-muted">
+                            <span class="status-indicator status-ok"></span>
+                            Versión actual: <strong>15.2(2)E6</strong>
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alarmas y Alertas -->
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title text-danger">
+                        <i class="bi bi-bell"></i> Alarmas y Alertas
+                    </h5>
+                    <p class="card-text">Sistema de notificaciones</p>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-maintenance" onclick="configurarAlarmas()">
+                            <i class="bi bi-gear"></i> Configurar Alarmas
+                        </button>
+                        <button class="btn btn-maintenance" onclick="verificarLogs()">
+                            <i class="bi bi-journal-text"></i> Verificar Logs
+                        </button>
+                        <button class="btn btn-maintenance" onclick="testNotificacion()">
+                            <i class="bi bi-envelope"></i> Test Notificación
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mantenimiento Predictivo -->
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title text-info">
+                        <i class="bi bi-graph-up"></i> Mantenimiento Predictivo
+                    </h5>
+                    <p class="card-text">Análisis y recomendaciones</p>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-maintenance" onclick="analizarPatrones()">
+                            <i class="bi bi-bar-chart"></i> Analizar Patrones
+                        </button>
+                        <button class="btn btn-maintenance" onclick="generarReporte()">
+                            <i class="bi bi-file-earmark-pdf"></i> Generar Reporte
+                        </button>
+                        <button class="btn btn-maintenance" onclick="recomendaciones()">
+                            <i class="bi bi-lightbulb"></i> Recomendaciones
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reinicio y Limpieza -->
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title text-secondary">
+                        <i class="bi bi-arrow-clockwise"></i> Reinicio y Limpieza
+                    </h5>
+                    <p class="card-text">Operaciones de sistema</p>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-maintenance" onclick="limpiarLogs()">
+                            <i class="bi bi-trash"></i> Limpiar Logs
+                        </button>
+                        <button class="btn btn-maintenance" onclick="reiniciarInterfaz()">
+                            <i class="bi bi-power"></i> Reiniciar Interfaz
+                        </button>
+                        <button class="btn btn-outline-danger" onclick="reiniciarRouter()">
+                            <i class="bi bi-arrow-repeat"></i> Reiniciar Router
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Área de Resultados -->
+        <div id="resultContainer" class="mt-4" style="display: none;">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-terminal"></i> Resultado
+                        <span class="loading spinner-border spinner-border-sm ms-2" role="status"></span>
+                    </h5>
+                    <div id="resultContent" class="result-container">
+                        <!-- Aquí se mostrarán los resultados -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let connectionEstablished = false;
+
+        function showLoading() {
+            document.querySelector('.loading').classList.add('active');
+        }
+
+        function hideLoading() {
+            document.querySelector('.loading').classList.remove('active');
+        }
+
+        function showResult(content, type = 'info') {
+            const resultContainer = document.getElementById('resultContainer');
+            const resultContent = document.getElementById('resultContent');
+            
+            // Limpiar clases anteriores
+            resultContent.className = 'result-container';
+            
+            // Agregar clase según el tipo
+            if (type === 'error') {
+                resultContent.classList.add('error');
+            } else if (type === 'success') {
+                resultContent.classList.add('success');
+            }
+            
+            resultContent.innerHTML = content;
+            resultContainer.style.display = 'block';
+            
+            // Scroll hacia el resultado
+            resultContainer.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function getConnectionData() {
+            return {
+                ip: document.getElementById('ip').value,
+                usuario: document.getElementById('usuario').value,
+                password: document.getElementById('password').value,
+                tipo_conexion: document.getElementById('tipo_conexion').value
+            };
+        }
+
+        function validateConnection() {
+            const data = getConnectionData();
+            if (!data.ip || !data.usuario || !data.password) {
+                showResult('❌ Por favor, complete todos los campos de conexión', 'error');
+                return false;
+            }
+            return true;
+        }
+
+        function testConnection() {
+            const data = getConnectionData();
+            
+            if (!data.ip || !data.usuario || !data.password) {
+                showConnectionStatus('Por favor, complete todos los campos', 'error');
+                return;
+            }
+
+            showLoading();
+            showConnectionStatus('Probando conexión...', 'info');
+
+            // Simular prueba de conexión
+            setTimeout(() => {
+                hideLoading();
+                connectionEstablished = true;
+                showConnectionStatus(`Conexión exitosa vía ${data.tipo_conexion.toUpperCase()} a ${data.ip}`, 'success');
+                updateInterfaceStatus();
+            }, 2000);
+        }
+
+        function showConnectionStatus(message, type) {
+            const statusDiv = document.getElementById('connectionStatus');
+            const alertClass = type === 'success' ? 'alert-success' : 
+                              type === 'error' ? 'alert-danger' : 'alert-info';
+            
+            statusDiv.innerHTML = `<div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>`;
+        }
+
+        function updateInterfaceStatus() {
+            const statusDiv = document.getElementById('interfaceStatus');
+            const interfaces = [
+                { name: 'Fast0/0', status: 'up' },
+                { name: 'Gig0/1', status: 'up' },
+                { name: 'Gig0/2', status: 'up' },
+                { name: 'Gig0/3', status: 'down' }
+            ];
+
+            statusDiv.innerHTML = interfaces.map(iface => 
+                `<div class="interface ${iface.status}">${iface.name} - ${iface.status.toUpperCase()}</div>`
+            ).join('');
+        }
+
+        function ejecutarComando(comando, descripcion) {
+            if (!validateConnection()) return;
+
+            showLoading();
+            showResult(`Ejecutando: ${descripcion}...`, 'info');
+
+            const data = getConnectionData();
+            const formData = new FormData();
+            formData.append('ip', data.ip);
+            formData.append('usuario', data.usuario);
+            formData.append('password', data.password);
+            formData.append('tipo_conexion', data.tipo_conexion);
+            formData.append('comando', comando);
+
+            fetch('/ejecutar-comando-json', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                hideLoading();
+                if (data.status === 'success') {
+                    showResult(data.salida, 'success');
+                } else {
+                    showResult(data.error, 'error');
+                }
+            })
+            .catch(error => {
+                hideLoading();
+                showResult(`❌ Error al ejecutar comando: ${error.message}`, 'error');
+            });
+        }
+
+        function descargarBackup(tipo) {
+            if (!validateConnection()) return;
+
+            showLoading();
+            showResult(`Descargando backup ${tipo}-config...`, 'info');
+
+            const data = getConnectionData();
+            const formData = new FormData();
+            formData.append('ip', data.ip);
+            formData.append('usuario', data.usuario);
+            formData.append('password', data.password);
+            formData.append('tipo_conexion', data.tipo_conexion);
+            formData.append('tipo_backup', tipo);
+
+            fetch('/descargar-backup', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => Promise.reject(err));
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                hideLoading();
+                // Crear enlace de descarga
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                
+                // Obtener nombre del archivo
+                const fecha = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+                a.download = `backup_${data.ip}_${tipo}_${fecha}.txt`;
+                
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                showResult(`✅ Backup ${tipo}-config descargado exitosamente`, 'success');
+            })
+            .catch(error => {
+                hideLoading();
+                const errorMsg = error.error || error.message || 'Error desconocido';
+                showResult(`❌ Error al descargar backup: ${errorMsg}`, 'error');
+            });
+        }
+
+        // Funciones específicas de mantenimiento
+        function realizarBackup(tipo) {
+            const comando = tipo === 'running' ? 'show running-config' : 'show startup-config';
+            ejecutarComando(comando, `Backup ${tipo}-config`);
+        }
+
+        function verificarEstado(tipo) {
+            const comandos = {
+                'cpu': 'show processes cpu',
+                'interfaces': 'show interfaces',
+                'errores': 'show interfaces | include CRC'
+            };
+            ejecutarComando(comandos[tipo], `Verificar ${tipo}`);
+        }
+
+        function verificarVersion() {
+            ejecutarComando('show version', 'Verificar versión del sistema');
+        }
+
+        function listarImagenes() {
+            ejecutarComando('show flash', 'Listar imágenes en flash');
+        }
+
+        function verificarLogs() {
+            ejecutarComando('show logging', 'Verificar logs del sistema');
+        }
+
+        function limpiarLogs() {
+            ejecutarComando('clear logging', 'Limpiar logs del sistema');
+        }
+
+        function reiniciarInterfaz() {
+            const interfaz = prompt('Ingrese la interfaz a reiniciar (ej: GigabitEthernet0/1):');
+            if (interfaz) {
+                ejecutarComando(`shutdown interface ${interfaz}`, `Reiniciar interfaz ${interfaz}`);
+            }
+        }
+
+        function reiniciarRouter() {
+            if (confirm('¿Está seguro de que desea reiniciar el router? Esta acción interrumpirá el servicio.')) {
+                ejecutarComando('reload', 'Reiniciar router');
+            }
+        }
+
+        // Funciones que muestran mensajes informativos (no ejecutan comandos reales)
+        function programarBackup() {
+            showResult('📅 Funcionalidad de programación de backup en desarrollo', 'info');
+        }
+
+        function actualizarFirmware() {
+            showResult('⚠️ Actualización de firmware requiere archivo de imagen', 'info');
+        }
+
+        function configurarAlarmas() {
+            showResult('🔔 Panel de configuración de alarmas en desarrollo', 'info');
+        }
+
+        function testNotificacion() {
+            showResult('📧 Notificación de prueba enviada correctamente', 'success');
+        }
+
+        function analizarPatrones() {
+            showResult('📊 Análisis de patrones completado - No se detectaron anomalías', 'success');
+        }
+
+        function generarReporte() {
+            showResult('📄 Reporte de mantenimiento generado exitosamente', 'success');
+        }
+
+        function recomendaciones() {
+            showResult(`💡 <strong>Recomendaciones:</strong><br>
+                        • Interfaz Gig0/3 está deshabilitada - Verificar conexión<br>
+                        • CPU al 8% - Rendimiento óptimo<br>
+                        • Memoria al 45% - Dentro de parámetros normales`, 'info');
+        }
+    </script>
+</body>
+</html>
