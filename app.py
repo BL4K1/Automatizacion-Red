@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
-from deploy_module import ejecutar_comando, ejecutar_comando_telnet
+from deploy_module import execute_command, _create_connection
 from log_module import registrar_log
 from user_module import (
     inicializar_tablas_usuarios, autenticar_usuario, crear_sesion,
@@ -7,6 +7,7 @@ from user_module import (
     actualizar_usuario, cambiar_password
 )
 from functools import wraps
+from grpc_client import RouterGRPCClient
 
 app = Flask(__name__)
 app.secret_key = 'tu_clave_secreta_super_segura_aqui'  # Cambia esto en producción
@@ -1004,6 +1005,102 @@ def security_verificar_conexion():
             'error': resultado['salida'],
             'mensaje': 'Error al verificar conexión'
         }), 500
+
+
+# Endpoints de la API de gRPC 
+@app.route('/interfaces', methods=['GET', 'POST'])
+@login_required
+def interfaces():
+    if request.method == 'POST':
+        ip = request.form.get('ip')
+        usuario = request.form.get('usuario')
+        password = request.form.get('password')
+        protocolo = request.form.get('tipo_conexion', 'telnet')
+
+        try:
+            with RouterGRPCClient() as client:
+                success, interfaces, mensaje = client.get_interfaces(ip, usuario, password, protocolo)
+        except Exception as e:
+            flash(f"Error en conexión gRPC: {str(e)}", 'danger')
+            return render_template('grpc-crud.html', interfaces=[])
+
+        if success:
+            # Convierte protobuf interfaces a dict para facilitar el template si quieres
+            interfaces_list = []
+            for iface in interfaces:
+                interfaces_list.append({
+                    'name': iface.name,
+                    'status': iface.status,
+                    'ip_address': iface.ip_address,
+                    'description': iface.description
+                })
+            return render_template('grpc-crud.html', interfaces=interfaces_list, mensaje=mensaje)
+        else:
+            flash(f"Error al obtener interfaces: {mensaje}", 'danger')
+            return render_template('grpc-crud.html', interfaces=[])
+
+    # GET: solo muestra la página sin interfaces
+    return render_template('grpc-crud.html', interfaces=[])
+
+@app.route('/usuarios/agregar', methods=['POST'])
+def agregar_usuario():
+    data = request.form  # O request.json si usas API REST JSON
+    ip = data.get('ip')
+    usuario = data.get('usuario')
+    password = data.get('password')
+    protocolo = data.get('tipo_conexion', 'telnet')
+    new_username = data.get('new_username')
+    new_password = data.get('new_password')
+    privilege_level = data.get('privilege_level', '15')
+
+    with RouterGRPCClient() as client:
+        success, mensaje = client.add_user(ip, usuario, password, protocolo, new_username, new_password, privilege_level)
+
+    if success:
+        flash(f"Usuario {new_username} agregado correctamente", 'success')
+    else:
+        flash(f"Error agregando usuario: {mensaje}", 'danger')
+    return redirect(url_for('interfaces'))
+
+@app.route('/usuarios/borrar', methods=['POST'])
+def borrar_usuario():
+    ip = request.form.get('ip')
+    usuario = request.form.get('usuario')       # usuario admin con el que te conectas
+    password = request.form.get('password')
+    protocolo = request.form.get('tipo_conexion', 'telnet')
+    target_username = request.form.get('target_username')  # usuario que quieres borrar
+
+    with RouterGRPCClient() as client:
+        success, mensaje = client.delete_user(ip, usuario, password, protocolo, target_username)
+
+    if success:
+        flash(f"Usuario {target_username} eliminado con éxito.", 'success')
+    else:
+        flash(f"Error eliminando usuario: {mensaje}", 'danger')
+
+    return redirect(url_for('interfaces'))
+
+@app.route('/usuarios/actualizar', methods=['POST'])
+def actualizar_password():
+    ip = request.form.get('ip')
+    usuario = request.form.get('usuario')
+    password = request.form.get('password')
+    protocolo = request.form.get('tipo_conexion', 'telnet')
+
+    target_username = request.form.get('target_username')
+    new_password = request.form.get('new_password')
+
+    with RouterGRPCClient() as client:
+        success, mensaje = client.update_user_password(ip, usuario, password, protocolo, target_username, new_password)
+
+    if success:
+        flash(f"Contraseña de {target_username} actualizada con éxito.", 'success')
+    else:
+        flash(f"Error actualizando contraseña: {mensaje}", 'danger')
+
+    return redirect(url_for('interfaces'))
+
+
 
 
 if __name__ == '__main__':

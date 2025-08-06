@@ -1,0 +1,188 @@
+syntax = "proto3";
+
+package router;
+
+// Servicio principal para operaciones en routers
+service RouterService {
+  // Operaciones de configuración
+  rpc GetConfig (ConfigRequest) returns (ConfigResponse);
+  rpc GetInterfaces (RouterRequest) returns (InterfacesResponse);
+  rpc GetRoutingTable (RouterRequest) returns (RoutingResponse);
+  rpc GetUsers (RouterRequest) returns (UsersResponse);
+  
+  // Operaciones CRUD de usuarios
+  rpc AddUser (AddUserRequest) returns (OperationResponse);
+  rpc DeleteUser (DeleteUserRequest) returns (OperationResponse);
+  rpc UpdateUserPassword (UpdateUserRequest) returns (OperationResponse);
+  
+  // Operaciones CRUD de interfaces
+  rpc ConfigureInterface (InterfaceConfigRequest) returns (OperationResponse);
+  rpc EnableInterface (InterfaceRequest) returns (OperationResponse);
+  rpc DisableInterface (InterfaceRequest) returns (OperationResponse);
+  rpc SetInterfaceIP (InterfaceIPRequest) returns (OperationResponse);
+  
+  // Operaciones de rutas
+  rpc AddRoute (RouteRequest) returns (OperationResponse);
+  rpc DeleteRoute (RouteRequest) returns (OperationResponse);
+  
+  // Comando personalizado
+  rpc ExecuteCommand (CommandRequest) returns (CommandResponse);
+  
+  // Operaciones de sistema
+  rpc SaveConfig (RouterRequest) returns (OperationResponse);
+  rpc RebootRouter (RouterRequest) returns (OperationResponse);
+}
+
+// Mensajes para identificar router
+message RouterRequest {
+  string ip = 1;
+  string username = 2;
+  string password = 3;
+  string protocol = 4; // "ssh" o "telnet"
+}
+
+// Mensajes para respuestas de configuración
+message ConfigRequest {
+  string ip = 1;
+  string username = 2;
+  string password = 3;
+  string protocol = 4;
+  string config_type = 5; // "running", "startup", "version"
+}
+
+message ConfigResponse {
+  bool success = 1;
+  string config = 2;
+  string message = 3;
+}
+
+// Mensajes para interfaces
+message InterfacesResponse {
+  bool success = 1;
+  repeated Interface interfaces = 2;
+  string message = 3;
+}
+
+message Interface {
+  string name = 1;
+  string status = 2;
+  string ip_address = 3;
+  string subnet_mask = 4;
+  string description = 5;
+}
+
+message InterfaceConfigRequest {
+  string ip = 1;
+  string username = 2;
+  string password = 3;
+  string protocol = 4;
+  string interface_name = 5;
+  string description = 6;
+}
+
+message InterfaceRequest {
+  string ip = 1;
+  string username = 2;
+  string password = 3;
+  string protocol = 4;
+  string interface_name = 5;
+}
+
+message InterfaceIPRequest {
+  string ip = 1;
+  string username = 2;
+  string password = 3;
+  string protocol = 4;
+  string interface_name = 5;
+  string ip_address = 6;
+  string subnet_mask = 7;
+}
+
+// Mensajes para routing
+message RoutingResponse {
+  bool success = 1;
+  repeated Route routes = 2;
+  string message = 3;
+}
+
+message Route {
+  string network = 1;
+  string subnet_mask = 2;
+  string next_hop = 3;
+  string interface = 4;
+  string administrative_distance = 5;
+  string metric = 6;
+}
+
+message RouteRequest {
+  string ip = 1;
+  string username = 2;
+  string password = 3;
+  string protocol = 4;
+  string network = 5;
+  string subnet_mask = 6;
+  string next_hop = 7;
+  string administrative_distance = 8; // opcional
+}
+
+// Mensajes para usuarios
+message UsersResponse {
+  bool success = 1;
+  repeated User users = 2;
+  string message = 3;
+}
+
+message User {
+  string username = 1;
+  string privilege_level = 2;
+  string status = 3;
+}
+
+message AddUserRequest {
+  string ip = 1;
+  string username = 2;
+  string password = 3;
+  string protocol = 4;
+  string new_username = 5;
+  string new_password = 6;
+  string privilege_level = 7; // opcional, default 15
+}
+
+message DeleteUserRequest {
+  string ip = 1;
+  string username = 2;
+  string password = 3;
+  string protocol = 4;
+  string target_username = 5;
+}
+
+message UpdateUserRequest {
+  string ip = 1;
+  string username = 2;
+  string password = 3;
+  string protocol = 4;
+  string target_username = 5;
+  string new_password = 6;
+}
+
+// Mensajes para comandos personalizados
+message CommandRequest {
+  string ip = 1;
+  string username = 2;
+  string password = 3;
+  string protocol = 4;
+  string command = 5;
+  bool config_mode = 6; // si requiere modo configuración
+}
+
+message CommandResponse {
+  bool success = 1;
+  string output = 2;
+  string message = 3;
+}
+
+// Respuesta genérica para operaciones
+message OperationResponse {
+  bool success = 1;
+  string message = 2;
+}

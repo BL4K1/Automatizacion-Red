@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>API gRPC</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      color: #333;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      padding: 30px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)" /></svg>');
+      opacity: 0.3;
+    }
+
+    .header h1 {
+      color: white;
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      position: relative;
+      z-index: 1;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .header .subtitle {
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 1.1rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .content {
+      padding: 40px;
+    }
+
+    .message {
+      margin: 20px 0;
+      padding: 15px 20px;
+      border-radius: 12px;
+      border-left: 5px solid;
+      animation: slideIn 0.5s ease-out;
+      backdrop-filter: blur(5px);
+    }
+
+    .message.success {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.05));
+      border-left-color: #10b981;
+      color: #065f46;
+    }
+
+    .message.error {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.05));
+      border-left-color: #ef4444;
+      color: #991b1b;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .form-section {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(248, 250, 252, 0.8));
+      border-radius: 16px;
+      padding: 30px;
+      margin: 30px 0;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+      transition: all 0.3s ease;
+    }
+
+    .form-section:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-section h2 {
+      color: #1f2937;
+      font-size: 1.8rem;
+      margin-bottom: 25px;
+      position: relative;
+      padding-bottom: 15px;
+    }
+
+    .form-section h2::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 60px;
+      height: 3px;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      border-radius: 2px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #374151;
+      font-size: 0.95rem;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    select {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 10px;
+      font-size: 1rem;
+      background: white;
+      transition: all 0.3s ease;
+      font-family: inherit;
+    }
+
+    input[type="text"]:focus,
+    input[type="password"]:focus,
+    select:focus {
+      outline: none;
+      border-color: #4f46e5;
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+      transform: translateY(-1px);
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+      transition: left 0.5s;
+    }
+
+    .btn:hover::before {
+      left: 100%;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: white;
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: white;
+    }
+
+    .btn-warning {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: white;
+    }
+
+    .interfaces-section {
+      margin: 40px 0;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.9));
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+      backdrop-filter: blur(10px);
+    }
+
+    .interfaces-section h2 {
+      color: #1f2937;
+      font-size: 1.8rem;
+      margin-bottom: 25px;
+      position: relative;
+      padding-bottom: 15px;
+    }
+
+    .interfaces-section h2::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 60px;
+      height: 3px;
+      background: linear-gradient(135deg, #10b981, #059669);
+      border-radius: 2px;
+    }
+
+    .table-container {
+      overflow-x: auto;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    th {
+      background: linear-gradient(135deg, #1f2937, #374151);
+      color: white;
+      padding: 16px;
+      text-align: left;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-size: 0.9rem;
+    }
+
+    td {
+      padding: 14px 16px;
+      border-bottom: 1px solid #f3f4f6;
+      transition: background-color 0.3s ease;
+    }
+
+    tbody tr:hover {
+      background: linear-gradient(135deg, rgba(79, 70, 229, 0.05), rgba(124, 58, 237, 0.05));
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 30px;
+      margin-top: 40px;
+    }
+
+    .icon {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    @media (max-width: 768px) {
+      .content {
+        padding: 20px;
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+
+      .form-section {
+        padding: 20px;
+      }
+
+      .header h1 {
+        font-size: 2rem;
+      }
+
+      .table-container {
+        font-size: 0.9rem;
+      }
+
+      th, td {
+        padding: 12px 8px;
+      }
+    }
+
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .status-badge {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-up {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+    }
+
+    .status-down {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🔧 API gRPC</h1>
+      <p class="subtitle">Sistema de administración y configuración de red</p>
+    </div>
+
+    <div class="content">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="message {{ category }}">
+              <strong>{{ '✅' if category == 'success' else '❌' }}</strong> {{ message }}
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      <div class="form-section">
+        <h2>🔗 Conectar al Router</h2>
+        <form id="form-conexion" method="POST" action="{{ url_for('interfaces') }}">
+          <div class="form-group">
+            <label for="ip">
+              <span class="icon">🌐</span>
+              Dirección IP
+            </label>
+            <input type="text" name="ip" id="ip" placeholder="192.168.1.1" required />
+          </div>
+          <div class="form-group">
+            <label for="usuario">
+              <span class="icon">👤</span>
+              Usuario
+            </label>
+            <input type="text" name="usuario" id="usuario" placeholder="admin" required />
+          </div>
+          <div class="form-group">
+            <label for="password">
+              <span class="icon">🔐</span>
+              Contraseña
+            </label>
+            <input type="password" name="password" id="password" required />
+          </div>
+          <div class="form-group">
+            <label for="tipo_conexion">
+              <span class="icon">🔌</span>
+              Protocolo de Conexión
+            </label>
+            <select name="tipo_conexion" id="tipo_conexion">
+              <option value="ssh">SSH (Seguro)</option>
+              <option value="telnet">Telnet</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary">
+            <span class="icon">🔍</span>
+            Obtener Interfaces
+          </button>
+        </form>
+      </div>
+
+      {% if interfaces %}
+        <div class="interfaces-section">
+          <h2>📡 Interfaces de Red</h2>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Estado</th>
+                  <th>Dirección IP</th>
+                  <th>Descripción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for iface in interfaces %}
+                  <tr>
+                    <td><strong>{{ iface.name }}</strong></td>
+                    <td>
+                      <span class="status-badge {{ 'status-up' if iface.status == 'up' else 'status-down' }}">
+                        {{ iface.status }}
+                      </span>
+                    </td>
+                    <td>{{ iface.ip_address or '—' }}</td>
+                    <td>{{ iface.description or '—' }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      {% endif %}
+
+      <div class="grid">
+        <div class="form-section">
+          <h2>➕ Agregar Usuario</h2>
+          <form method="POST" action="{{ url_for('agregar_usuario') }}">
+            <input type="hidden" name="ip" value="{{ request.form.ip }}">
+            <input type="hidden" name="usuario" value="{{ request.form.usuario }}">
+            <input type="hidden" name="password" value="{{ request.form.password }}">
+            <input type="hidden" name="tipo_conexion" value="{{ request.form.tipo_conexion }}">
+
+            <div class="form-group">
+              <label for="new_username">
+                <span class="icon">👤</span>
+                Nuevo Usuario
+              </label>
+              <input type="text" name="new_username" id="new_username" placeholder="nombre_usuario" required />
+            </div>
+            <div class="form-group">
+              <label for="new_password">
+                <span class="icon">🔐</span>
+                Contraseña
+              </label>
+              <input type="password" name="new_password" id="new_password" required />
+            </div>
+            <div class="form-group">
+              <label for="privilege_level">
+                <span class="icon">⭐</span>
+                Nivel de Privilegio
+              </label>
+              <input type="text" name="privilege_level" id="privilege_level" value="15" required />
+            </div>
+            <button type="submit" class="btn btn-success">
+              <span class="icon">✅</span>
+              Agregar Usuario
+            </button>
+          </form>
+        </div>
+
+        <div class="form-section">
+          <h2>🗑️ Eliminar Usuario</h2>
+          <form method="POST" action="{{ url_for('borrar_usuario') }}">
+            <input type="hidden" name="ip" value="{{ request.form.ip }}">
+            <input type="hidden" name="usuario" value="{{ request.form.usuario }}">
+            <input type="hidden" name="password" value="{{ request.form.password }}">
+            <input type="hidden" name="tipo_conexion" value="{{ request.form.tipo_conexion }}">
+
+            <div class="form-group">
+              <label for="target_username_delete">
+                <span class="icon">👤</span>
+                Usuario a Eliminar
+              </label>
+              <input type="text" name="target_username" id="target_username_delete" placeholder="usuario_existente" required />
+            </div>
+            <button type="submit" class="btn btn-danger">
+              <span class="icon">🗑️</span>
+              Eliminar Usuario
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h2>🔄 Actualizar Contraseña</h2>
+        <form method="POST" action="{{ url_for('actualizar_password') }}">
+          <input type="hidden" name="ip" value="{{ request.form.ip }}">
+          <input type="hidden" name="usuario" value="{{ request.form.usuario }}">
+          <input type="hidden" name="password" value="{{ request.form.password }}">
+          <input type="hidden" name="tipo_conexion" value="{{ request.form.tipo_conexion }}">
+
+          <div class="form-group">
+            <label for="target_username_update">
+              <span class="icon">👤</span>
+              Usuario
+            </label>
+            <input type="text" name="target_username" id="target_username_update" placeholder="usuario_existente" required />
+          </div>
+          <div class="form-group">
+            <label for="new_password_update">
+              <span class="icon">🔐</span>
+              Nueva Contraseña
+            </label>
+            <input type="password" name="new_password" id="new_password_update" required />
+          </div>
+          <button type="submit" class="btn btn-warning">
+            <span class="icon">🔄</span>
+            Actualizar Contraseña
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Animación suave al cargar la página
+    document.addEventListener('DOMContentLoaded', function() {
+      const formSections = document.querySelectorAll('.form-section');
+      formSections.forEach((section, index) => {
+        section.style.opacity = '0';
+        section.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+          section.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+          section.style.opacity = '1';
+          section.style.transform = 'translateY(0)';
+        }, index * 100);
+      });
+    });
+
+    // Feedback visual para formularios
+    document.querySelectorAll('form').forEach(form => {
+      form.addEventListener('submit', function(e) {
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+          submitBtn.innerHTML = '<div class="loading"></div> Procesando...';
+          submitBtn.disabled = true;
+        }
+      });
+    });
+
+    // Validación en tiempo real
+    document.querySelectorAll('input[type="text"], input[type="password"]').forEach(input => {
+      input.addEventListener('blur', function() {
+        if (this.value.trim() === '') {
+          this.style.borderColor = '#ef4444';
+        } else {
+          this.style.borderColor = '#10b981';
+        }
+      });
+    });
+  </script>
+</body>
+</html>
